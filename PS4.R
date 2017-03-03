@@ -58,70 +58,8 @@ temp <- paste0(wikiURL, topic) %>%
 ECvoteTable <- html_table(temp[[3]]) # inconsistent number of columns
 ECvoteTable <- html_table(temp[[3]], fill=TRUE) # subscript out of bounds
 
-# So, I had to write my own functions to parse the table:
+# So, we need to use a different package:
 
-fillVector <- function(object, keepIndices, input){
-  # This function replaces 0 or more values in a vector; while trivial,
-  # defining this function prevents code bloat and breaking in parseTable()
-  if(length(keepIndices) == 0){
-    return(input)
-  }
-  object[-keepIndices] <- input
-  return(object)
-}
+library(htmltab)
 
-getRowspans <- function(rowIn, keepIndices, rowLength){
-  # For each row in the table, we need to know if any of the cells will be
-  # spread over subsequent rows, i.e. if any <td> contains a rowspan
-  chars <- html_attr(html_nodes(rowIn, 'td'), 'rowspan')
-  rowspans <- fillVector(rep(NA, rowLength), keepIndices, chars)
-  return(as.numeric(ifelse(is.na(rowspans), 0, rowspans)))
-}
-
-parseRow <- function(rowIn, keepIndices, rowLength, lastRow){
-  # This gets the text from every cell in the row;
-  # calling fillVector to fill in values from lastRow lets us use the
-  # previous row as default values in case there was a rowspan carrying over
-  rowCells <- html_text(html_nodes(rowIn, 'td'), trim=TRUE)
-  return(fillVector(lastRow, keepIndices, rowCells))
-}
-
-parseTable <- function(tableIn){
-  # This function uses the helper functions above to actually parse tables.
-  # First we get all the rows from tableIn:
-  rows <- html_nodes(tableIn, 'tr')
-  # Then we get the header as a character vector:
-  header <- html_text(html_nodes(rows[1], 'th'), trim=TRUE)
-  # It will be convenient to make a blank dataframe to fill in:
-  result <- data.frame(matrix(NA, nrow=length(rows)-1, ncol=length(header)))
-  # The counters variable will be used to keep track of rowspans.
-  # To start off, we assume that each cell spans only one row:
-  counters <- rep(1, length(header))
-  # Now we can parse the rows in a loop.
-  # I chose a loop approach rather than apply because I need to alter
-  # variables in the function's environment as I go.
-  for(i in 2:length(rows)){
-    # I decrement any counters valued greater than one at each iteration
-    # to account for the row the current row takes up in the rowspan:
-    counters[which(counters > 1)] <- counters[which(counters > 1)] - 1
-    # The keep indices variable tells me which columns have carryover values:
-    keepIndices <- which(counters > 1)
-    # On the first iteration, there will be no previous row
-    if (i == 2) {
-      lastRow <- rep(NA, length(header))
-    } else { # but on all other rows we use the previous row for default values
-      lastRow <- result[i-2, ]
-    }
-    # Then I use parseRow to get the text from the current row,
-    # plus default values if there was carryover from a rowspan,
-    # and put those values in the result dataframe
-    result[i-1, ] <- parseRow(rows[i], keepIndices, length(header), lastRow)
-    # and increase rowspan counters as necessary before the next loop iteration
-    counters <- counters + getRowspans(rows[i], keepIndices, length(header))
-  }
-  # Lastly, it might be nice to have column names from the header:
-  colnames(result) <- header
-  return(result) # and we return the result
-}
-
-ECvoteTable <- parseTable(temp[[3]])
+ECvoteTable <- htmltab(paste0(wikiURL, topic), which = 3)
