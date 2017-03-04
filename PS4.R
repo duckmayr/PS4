@@ -44,6 +44,65 @@ voteTable[ , c(2, 7)] <- apply(voteTable[ , c(2, 7)], 2, removeExtraName)
 voteTable <- voteTable[order(voteTable$electionYear), ]
 
 
+## Time to plot some trends using these data.
+
+# First save the current graphics parameters to reset them later:
+opar <- par(no.readonly=TRUE)
+
+# It's convenient to define the colors we'll use:
+highPts <- rgb(1, 0, 0, alpha=0.75)
+lowPts <- rgb(0, 0, 1, alpha=0.75)
+turnoutCol <- 'green4'
+popVoteCol <- 'deepskyblue4'
+ECvoteCol <- 'firebrick2'
+
+# And a phrase we'll reuse in plot titles:
+titleEnd <- 'in Presidential Elections 1824-1900'
+
+# We're going to save these plots in a pdf:
+pdf('testPlots.pdf', width=4.5, height=8.5)
+
+# There will be three total plots, one on top of another:
+layout(matrix(1:3, ncol=1))
+
+# The first plot shows how voter turnout has changed over time.
+# Interestingly, voter turnout stays fairly stable except for a period of
+# high turnout from 1840 to 1900:
+plot(turnout ~ electionYear, voteTable, pch=21, cex=0.9, col='black',
+     bg=ifelse(voteTable$electionYear %in% c(1840:1900), highPts, lowPts),
+     xlab='Election Year', ylab='Voter Turnout (Percent)',
+     main='Voter Turnout in Presidential\nElections From 1824 to 2016')
+legend('bottomright', pt.bg=c(highPts, lowPts), bty='n', pch=21,
+       legend=c('Elections from 1840-1900', 'Elections pre-1840 and post-1900'))
+
+# The next plot shows how turnout and winners' popular vote trend together over
+# time. Often, when we see an increase in voter turnout, we see a corresponding
+# increase in the winner's popular vote percentage, except that winners' vote
+# share does not increase in the period of high turnout from 1840 to 1900:
+plot(NULL, xlim=c(1824, 2016), ylim=c(20, 100), type='n',
+     xlab='Election Year', ylab='Percent',
+     main=paste('Voter Turnout and Popular Vote', titleEnd, sep='\n'))
+# main='Voter Turnout and Popular Vote in\nPresidential Elections 1824-1900')
+lines(turnout ~ electionYear, voteTable, col=turnoutCol)
+lines(popVote ~ electionYear, voteTable, col=popVoteCol)
+legend('bottomright', col=c(turnoutCol, popVoteCol), lty=1, bty='n',
+       legend=c('Voter Turnout', 'Popular Vote (Winner)'))
+
+# Finally, we look at how winners' popular vote percentage and electoral
+# college vote percentage trend together over time. Generally speaking, an
+# increase in one corresponds to an increase in the other, but the changes
+# are much more exaggerated for electoral college vote:
+plot(NULL, xlim=c(1824, 2016), ylim=c(20, 100), type='n',
+     xlab='Election Year', ylab='Percent',
+     main=paste('Electoral College and Popular Vote', titleEnd, sep='\n'))
+lines(elecCollegeVote ~ electionYear, voteTable, col=ECvoteCol)
+lines(popVote ~ electionYear, voteTable, col=popVoteCol)
+legend('bottomright', col=c(ECvoteCol, popVoteCol), lty=1, bty='n',
+       legend=c('Electoral College Vote (Winner)', 'Popular Vote (Winner)'))
+
+# Now we turn off the plotting device and reset the graphics parameters:
+dev.off()
+par(opar)
 
 
 ## Now we need to scrape another table:
