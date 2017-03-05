@@ -14,7 +14,7 @@ voteTable <- html_table(temp[[2]])
 # Only some of the columns are useful, and the first two rows are useless:
 voteTable <- voteTable[3:nrow(voteTable), c(2:4, 6:8, 11:13)]
 # Now we need some sensible column names:
-colnames(voteTable) <- c('electionYear', 'winnerName', 'winnerParty',
+colnames(voteTable) <- c('year', 'winnerName', 'winnerParty',
                          'elecCollegeVote', 'popVote', 'popVoteMargin',
                          'loserName', 'loserParty', 'turnout')
 
@@ -41,7 +41,7 @@ voteTable[ , c(1, 4:6, 9)] <- apply(voteTable[ , c(1, 4:6, 9)], 2, stringToNum)
 voteTable[ , c(2, 7)] <- apply(voteTable[ , c(2, 7)], 2, removeExtraName)
 
 # Also, it will be convenient later to have the data temporally ordered:
-voteTable <- voteTable[order(voteTable$electionYear), ]
+voteTable <- voteTable[order(voteTable$year), ]
 
 
 ## Time to plot some trends using these data.
@@ -60,7 +60,7 @@ ECvoteCol <- 'firebrick2'
 titleEnd <- 'in Presidential Elections 1824-1900'
 
 # We're going to save these plots in a pdf:
-pdf('testPlots.pdf', width=4.5, height=8.5)
+pdf('electionPlots.pdf', width=4.5, height=8.5)
 
 # There will be three total plots, one on top of another:
 layout(matrix(1:3, ncol=1))
@@ -68,8 +68,8 @@ layout(matrix(1:3, ncol=1))
 # The first plot shows how voter turnout has changed over time.
 # Interestingly, voter turnout stays fairly stable except for a period of
 # high turnout from 1840 to 1900:
-plot(turnout ~ electionYear, voteTable, pch=21, cex=0.9, col='black',
-     bg=ifelse(voteTable$electionYear %in% c(1840:1900), highPts, lowPts),
+plot(turnout ~ year, voteTable, pch=21, cex=0.9, col='black',
+     bg=ifelse(voteTable$year %in% c(1840:1900), highPts, lowPts),
      xlab='Election Year', ylab='Voter Turnout (Percent)',
      main='Voter Turnout in Presidential\nElections From 1824 to 2016')
 legend('bottomright', pt.bg=c(highPts, lowPts), bty='n', pch=21,
@@ -83,8 +83,8 @@ plot(NULL, xlim=c(1824, 2016), ylim=c(20, 100), type='n',
      xlab='Election Year', ylab='Percent',
      main=paste('Voter Turnout and Popular Vote', titleEnd, sep='\n'))
 # main='Voter Turnout and Popular Vote in\nPresidential Elections 1824-1900')
-lines(turnout ~ electionYear, voteTable, col=turnoutCol)
-lines(popVote ~ electionYear, voteTable, col=popVoteCol)
+lines(turnout ~ year, voteTable, col=turnoutCol)
+lines(popVote ~ year, voteTable, col=popVoteCol)
 legend('bottomright', col=c(turnoutCol, popVoteCol), lty=1, bty='n',
        legend=c('Voter Turnout', 'Popular Vote (Winner)'))
 
@@ -95,8 +95,8 @@ legend('bottomright', col=c(turnoutCol, popVoteCol), lty=1, bty='n',
 plot(NULL, xlim=c(1824, 2016), ylim=c(20, 100), type='n',
      xlab='Election Year', ylab='Percent',
      main=paste('Electoral College and Popular Vote', titleEnd, sep='\n'))
-lines(elecCollegeVote ~ electionYear, voteTable, col=ECvoteCol)
-lines(popVote ~ electionYear, voteTable, col=popVoteCol)
+lines(elecCollegeVote ~ year, voteTable, col=ECvoteCol)
+lines(popVote ~ year, voteTable, col=popVoteCol)
 legend('bottomright', col=c(ECvoteCol, popVoteCol), lty=1, bty='n',
        legend=c('Electoral College Vote (Winner)', 'Popular Vote (Winner)'))
 
@@ -109,7 +109,7 @@ par(opar)
 
 topic <- 'United_States_presidential_election'
 
-temp <- paste0(wikiURL, topic) %>% 
+temp <- paste0(wikiURL, topic) %>%
   read_html %>%
   html_nodes("table")
 
@@ -121,4 +121,28 @@ ECvoteTable <- html_table(temp[[3]], fill=TRUE) # subscript out of bounds
 
 library(htmltab)
 
-ECvoteTable <- htmltab(paste0(wikiURL, topic), which = 3)
+# Which will be able to parse the table (note we only need three columns):
+tmpTable <- htmltab(paste0(wikiURL, topic), which = 3)[ , c(1, 3, 7)]
+colnames(tmpTable) <- c('year', 'candidate', 'ECvotes')
+# Electoral college votes are given as a string of the format
+# [number of votes received] / [number of votes possible to receive]
+# so we need to get just the number of votes received:
+tmpTable$ECvotes <- sapply(strsplit(tmpTable$ECvotes, ' / '),
+                           function(x) as.numeric(x[1]))
+# And now we can aggregate electoral college votes by year and candidate:
+aggList <- list(year=tmpTable$year, candidate=tmpTable$candidate)
+tmpTable <- aggregate(tmpTable$ECvotes, by=aggList, FUN=sum)
+rm(aggList)
+# And get only the top two electoral college vote winners by election:
+tmpTable <- tmpTable[order(tmpTable$year, tmpTable$x, decreasing=TRUE), ]
+tmpTable <- Reduce(rbind, by(tmpTable, tmpTable['year'], head, n=2))
+# It will be convenient to separate the winners from the runners up:
+winners <- tmpTable[seq(from=1, to=nrow(tmpTable), by=2), ]
+losers <- tmpTable[seq(from=2, to=nrow(tmpTable), by=2), ]
+# And now we can merge in this data to the original table we scraped:
+resultTable <- merge(voteTable, winners, by='year', all.x=TRUE)
+resultTable <- merge(resultTable, losers, by='year', all.x=TRUE)
+colnames(resultTable)[10:13] <- c('ECwinner', 'ECwinnerVote',
+                                  'ECrunnerup', 'ECrunnerupVote')
+resultTable$ECrunnerupVote[13] <- 42 # See FN 57 from the Wikipedia page
+save(resultTable, file='presidentialElections.Rdata')
