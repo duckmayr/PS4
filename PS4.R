@@ -46,9 +46,6 @@ voteTable <- voteTable[order(voteTable$year), ]
 
 ## Time to plot some trends using these data.
 
-# First save the current graphics parameters to reset them later:
-opar <- par(no.readonly=TRUE)
-
 # It's convenient to define the colors we'll use:
 highPts <- rgb(1, 0, 0, alpha=0.75)
 lowPts <- rgb(0, 0, 1, alpha=0.75)
@@ -82,7 +79,6 @@ legend('bottomright', pt.bg=c(highPts, lowPts), bty='n', pch=21,
 plot(NULL, xlim=c(1824, 2016), ylim=c(20, 100), type='n',
      xlab='Election Year', ylab='Percent',
      main=paste('Voter Turnout and Popular Vote', titleEnd, sep='\n'))
-# main='Voter Turnout and Popular Vote in\nPresidential Elections 1824-1900')
 lines(turnout ~ year, voteTable, col=turnoutCol)
 lines(popVote ~ year, voteTable, col=popVoteCol)
 legend('bottomright', col=c(turnoutCol, popVoteCol), lty=1, bty='n',
@@ -102,7 +98,6 @@ legend('bottomright', col=c(ECvoteCol, popVoteCol), lty=1, bty='n',
 
 # Now we turn off the plotting device and reset the graphics parameters:
 dev.off()
-par(opar)
 
 
 ## Now we need to scrape another table:
